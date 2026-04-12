@@ -764,29 +764,6 @@ textarea {
   transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.task-mini-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 4px;
-  border-radius: 6px;
-  background: #cfd4dc;
-}
-
-.task-mini-card.status-pending::before {
-  background: #ec4899;
-}
-
-.task-mini-card.status-in_progress::before {
-  background: #3b82f6;
-}
-
-.task-mini-card.status-completed::before {
-  background: #16a34a;
-}
-
 .task-mini-card:hover {
   transform: translateY(-2px);
   border-color: #c8ced9;

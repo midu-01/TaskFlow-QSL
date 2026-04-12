@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Task;
+use Illuminate\Validation\Rule;
+
 class UpdateTaskRequest extends ApiRequest
 {
     public function rules(): array
@@ -9,7 +12,7 @@ class UpdateTaskRequest extends ApiRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['required', 'in:pending,in_progress,completed'],
+            'status' => ['required', Rule::in(Task::STATUSES)],
             'due_date' => ['nullable', 'date'],
         ];
     }

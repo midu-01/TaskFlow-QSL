@@ -20,7 +20,7 @@ class TaskFactory extends Factory
         return [
             'title' => fake()->sentence(4),
             'description' => fake()->optional()->paragraph(),
-            'status' => fake()->randomElement(['pending', 'in_progress', 'completed']),
+            'status' => fake()->randomElement(Task::STATUSES),
             'due_date' => fake()->boolean(70)
                 ? fake()->dateTimeBetween('now', '+2 months')->format('Y-m-d')
                 : null,
