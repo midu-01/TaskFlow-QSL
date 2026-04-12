@@ -6,7 +6,6 @@ import {
   deleteTask,
   fetchTasks,
   updateTask,
-  updateTaskStatus,
 } from './api/tasks'
 
 const EMPTY_FORM = {
@@ -45,7 +44,8 @@ function getErrorMessage(error) {
 }
 
 function App() {
-  const [tasks, setTasks] = useState([])
+  const [allTasks, setAllTasks] = useState([])
+  const [tableTasks, setTableTasks] = useState([])
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [createFormData, setCreateFormData] = useState(EMPTY_FORM)
   const [editFormData, setEditFormData] = useState(EMPTY_FORM)
@@ -53,6 +53,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeActionId, setActiveActionId] = useState(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -61,7 +62,77 @@ function App() {
     [filters.status, filters.search],
   )
 
-  const loadTasks = useCallback(async () => {
+  const taskStats = useMemo(() => {
+    const summary = {
+      total: allTasks.length,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+    }
+
+    for (const task of allTasks) {
+      if (task.status === 'pending') {
+        summary.pending += 1
+      } else if (task.status === 'in_progress') {
+        summary.inProgress += 1
+      } else if (task.status === 'completed') {
+        summary.completed += 1
+      }
+    }
+
+    return summary
+  }, [allTasks])
+
+  const insights = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const sevenDaysFromNow = new Date(today)
+    sevenDaysFromNow.setDate(today.getDate() + 7)
+
+    let dueSoon = 0
+    let overdue = 0
+
+    for (const task of allTasks) {
+      if (!task.due_date || task.status === 'completed') {
+        continue
+      }
+
+      const dueDate = new Date(task.due_date)
+      dueDate.setHours(0, 0, 0, 0)
+
+      if (dueDate < today) {
+        overdue += 1
+      } else if (dueDate <= sevenDaysFromNow) {
+        dueSoon += 1
+      }
+    }
+
+    const total = Math.max(taskStats.total, 1)
+    const completedRate = Math.round((taskStats.completed / total) * 100)
+    const inProgressRate = Math.round((taskStats.inProgress / total) * 100)
+    const pendingRate = Math.round((taskStats.pending / total) * 100)
+
+    return {
+      dueSoon,
+      overdue,
+      completedRate,
+      inProgressRate,
+      pendingRate,
+    }
+  }, [allTasks, taskStats])
+
+  const loadOverviewTasks = useCallback(async () => {
+    try {
+      const response = await fetchTasks({ sort: '-created_at' })
+      setAllTasks(response.data)
+      setErrorMessage('')
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    }
+  }, [])
+
+  const loadTableTasks = useCallback(async () => {
     setIsLoading(true)
 
     try {
@@ -78,7 +149,7 @@ function App() {
       }
 
       const response = await fetchTasks(params)
-      setTasks(response.data)
+      setTableTasks(response.data)
       setErrorMessage('')
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
@@ -89,11 +160,15 @@ function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadTasks()
+      loadTableTasks()
     }, 250)
 
     return () => clearTimeout(timer)
-  }, [loadTasks])
+  }, [loadTableTasks])
+
+  useEffect(() => {
+    loadOverviewTasks()
+  }, [loadOverviewTasks])
 
   useEffect(() => {
     if (!successMessage) {
@@ -111,9 +186,10 @@ function App() {
     try {
       await createTask(buildPayload(createFormData))
       setCreateFormData(EMPTY_FORM)
+      setIsCreateModalOpen(false)
       setSuccessMessage('Task created successfully.')
       setErrorMessage('')
-      await loadTasks()
+      await Promise.all([loadOverviewTasks(), loadTableTasks()])
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -150,7 +226,7 @@ function App() {
       setSuccessMessage('Task updated successfully.')
       setErrorMessage('')
       handleCancelEdit()
-      await loadTasks()
+      await Promise.all([loadOverviewTasks(), loadTableTasks()])
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -176,22 +252,7 @@ function App() {
         handleCancelEdit()
       }
 
-      await loadTasks()
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    } finally {
-      setActiveActionId(null)
-    }
-  }
-
-  const handleStatusChange = async (taskId, status) => {
-    setActiveActionId(taskId)
-
-    try {
-      await updateTaskStatus(taskId, status)
-      setSuccessMessage('Task status updated successfully.')
-      setErrorMessage('')
-      await loadTasks()
+      await Promise.all([loadOverviewTasks(), loadTableTasks()])
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -212,100 +273,214 @@ function App() {
     setFilters(DEFAULT_FILTERS)
   }
 
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true)
+  }
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false)
+    setCreateFormData(EMPTY_FORM)
+  }
+
   return (
-    <main className="page">
-      <header className="page-header">
-        <h1>Task Management System</h1>
-        <p>Simple and reliable task tracking with status, filters, and search.</p>
+    <main className="dashboard">
+      <header className="top-bar">
+        <h1>TaskFlow</h1>
+        <button type="button" className="new-task-btn" onClick={handleOpenCreateModal}>
+          + New task
+        </button>
       </header>
 
       {errorMessage ? <div className="alert alert-error">{errorMessage}</div> : null}
       {successMessage ? <div className="alert alert-success">{successMessage}</div> : null}
 
-      <section className="panel">
-        <h2>Filters</h2>
-        <div className="filters">
-          <label className="field">
-            <span>Status</span>
-            <select name="status" value={filters.status} onChange={handleFilterChange}>
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Search Title</span>
-            <input
-              name="search"
-              type="text"
-              placeholder="Search tasks by title"
-              value={filters.search}
-              onChange={handleFilterChange}
-            />
-          </label>
-
-          <label className="field">
-            <span>Sort</span>
-            <select name="sort" value={filters.sort} onChange={handleFilterChange}>
-              <option value="-created_at">Newest First</option>
-              <option value="created_at">Oldest First</option>
-              <option value="title">Title (A-Z)</option>
-              <option value="-title">Title (Z-A)</option>
-              <option value="due_date">Due Date (Soonest)</option>
-              <option value="-due_date">Due Date (Latest)</option>
-              <option value="status">Status (A-Z)</option>
-              <option value="-status">Status (Z-A)</option>
-            </select>
-          </label>
-
-          <button type="button" className="btn btn-secondary filter-reset" onClick={clearFilters}>
-            Reset
-          </button>
-        </div>
-      </section>
-
-      <section className="form-layout">
-        <TaskForm
-          title="Create Task"
-          submitLabel="Create Task"
-          formData={createFormData}
-          setFormData={setCreateFormData}
-          onSubmit={handleCreate}
-          isSubmitting={isSubmitting}
-        />
-
-        {editingTaskId ? (
-          <TaskForm
-            title="Edit Task"
-            submitLabel="Update Task"
-            formData={editFormData}
-            setFormData={setEditFormData}
-            onSubmit={handleUpdate}
-            onCancel={handleCancelEdit}
-            isSubmitting={isSubmitting}
-          />
-        ) : (
-          <div className="panel edit-placeholder">
-            <h2>Edit Task</h2>
-            <p>Select a task from the list and click <strong>Edit</strong> to open the update form.</p>
+      <section className="metric-grid">
+        <article className="metric-card green">
+          <div className="metric-head">
+            <div className="metric-icon">○</div>
           </div>
-        )}
+          <p className="metric-label">Active Tasks</p>
+          <h2>{taskStats.inProgress}</h2>
+          <p className="metric-meta">In delivery right now</p>
+        </article>
+
+        <article className="metric-card blue">
+          <div className="metric-head">
+            <div className="metric-icon">◉</div>
+          </div>
+          <p className="metric-label">Total Tasks</p>
+          <h2>{taskStats.total}</h2>
+          <p className="metric-meta">All records in workspace</p>
+        </article>
+
+        <article className="metric-card pink">
+          <div className="metric-head">
+            <div className="metric-icon">◎</div>
+          </div>
+          <p className="metric-label">Completed Tasks</p>
+          <h2>{taskStats.completed}</h2>
+          <p className="metric-meta">{insights.completedRate}% completion rate</p>
+        </article>
       </section>
 
-      <section className="panel">
-        <h2>Tasks</h2>
-        <TaskList
-          tasks={tasks}
-          onEdit={handleEditClick}
-          onDelete={handleDelete}
-          onStatusChange={handleStatusChange}
-          isLoading={isLoading}
-          emptyMessage={hasFilter ? 'No tasks found for the selected filters.' : 'No tasks available. Create one to get started.'}
-          activeActionId={activeActionId}
-        />
+      <section className="insight-grid">
+        <article className="insight-card">
+          <div className="insight-header">
+            <h3>Task Progress</h3>
+            <span className="pill">Live</span>
+          </div>
+          <div className="progress-main">{insights.completedRate}%</div>
+          <p className="muted">Average task completion</p>
+          <div className="stacked-bars">
+            <div className="bar pending" style={{ width: `${insights.pendingRate}%` }} />
+            <div className="bar progress" style={{ width: `${insights.inProgressRate}%` }} />
+            <div className="bar complete" style={{ width: `${insights.completedRate}%` }} />
+          </div>
+          <div className="legend">
+            <span>Pending {taskStats.pending}</span>
+            <span>In Progress {taskStats.inProgress}</span>
+            <span>Completed {taskStats.completed}</span>
+          </div>
+        </article>
+
+        <article className="insight-card">
+          <div className="insight-header">
+            <h3>Task Status</h3>
+            <span className="pill">Summary</span>
+          </div>
+          <div
+            className="status-ring"
+            style={{
+              background: `conic-gradient(
+                #16a34a 0deg ${insights.completedRate * 3.6}deg,
+                #3b82f6 ${insights.completedRate * 3.6}deg ${(insights.completedRate + insights.inProgressRate) * 3.6}deg,
+                #ec4899 ${(insights.completedRate + insights.inProgressRate) * 3.6}deg 360deg
+              )`,
+            }}
+          >
+            <div className="status-ring-inner">
+              <strong>{taskStats.total}</strong>
+              <span>tasks</span>
+            </div>
+          </div>
+          <div className="status-lines">
+            <p>Completed: {taskStats.completed}</p>
+            <p>In Progress: {taskStats.inProgress}</p>
+            <p>Pending: {taskStats.pending}</p>
+          </div>
+        </article>
+
+        <article className="insight-card">
+          <div className="insight-header">
+            <h3>Delivery Trend</h3>
+            <span className="pill">Weekly</span>
+          </div>
+          <svg className="trend-chart" viewBox="0 0 320 110" role="img" aria-label="Task delivery trend">
+            <path d="M0 65 C20 50, 42 76, 62 60 C82 42, 104 75, 124 58 C145 42, 166 67, 186 52 C206 38, 228 64, 248 45 C268 30, 292 62, 320 49" />
+            <path d="M0 86 C22 72, 44 92, 66 81 C87 71, 108 96, 130 84 C151 72, 173 94, 195 82 C216 71, 238 89, 260 77 C282 66, 301 84, 320 73" />
+          </svg>
+          <div className="trend-meta">
+            <div>
+              <span>Due Soon</span>
+              <strong>{insights.dueSoon}</strong>
+            </div>
+            <div>
+              <span>Overdue</span>
+              <strong>{insights.overdue}</strong>
+            </div>
+          </div>
+        </article>
       </section>
+
+      <section className="workspace-grid">
+        <section className="workspace-panel list-panel">
+          <div className="section-head">
+            <h2>Task Table</h2>
+          </div>
+
+          <div className="table-filters">
+            <label className="field filter-inline">
+              <span>Status</span>
+              <select name="status" value={filters.status} onChange={handleFilterChange}>
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+
+            <label className="field filter-inline">
+              <span>Search</span>
+              <input
+                name="search"
+                type="text"
+                placeholder="Search tasks by title"
+                value={filters.search}
+                onChange={handleFilterChange}
+              />
+            </label>
+
+            <label className="field filter-inline">
+              <span>Sort</span>
+              <select name="sort" value={filters.sort} onChange={handleFilterChange}>
+                <option value="-created_at">Newest First</option>
+                <option value="created_at">Oldest First</option>
+                <option value="title">Title (A-Z)</option>
+                <option value="-title">Title (Z-A)</option>
+                <option value="due_date">Due Date (Soonest)</option>
+                <option value="-due_date">Due Date (Latest)</option>
+                <option value="status">Status (A-Z)</option>
+                <option value="-status">Status (Z-A)</option>
+              </select>
+            </label>
+
+            <button type="button" className="btn btn-secondary filter-reset" onClick={clearFilters}>
+              Reset
+            </button>
+          </div>
+
+          <TaskList
+            tasks={tableTasks}
+            onEdit={handleEditClick}
+            onDelete={handleDelete}
+            isLoading={isLoading}
+            emptyMessage={hasFilter ? 'No tasks found for the selected filters.' : 'No tasks available. Create one to get started.'}
+            activeActionId={activeActionId}
+          />
+        </section>
+      </section>
+
+      {isCreateModalOpen ? (
+        <div className="modal-overlay" onClick={handleCloseCreateModal} role="presentation">
+          <section className="modal-window" onClick={(event) => event.stopPropagation()}>
+            <TaskForm
+              title="Create Task"
+              submitLabel="Create Task"
+              formData={createFormData}
+              setFormData={setCreateFormData}
+              onSubmit={handleCreate}
+              onCancel={handleCloseCreateModal}
+              isSubmitting={isSubmitting}
+            />
+          </section>
+        </div>
+      ) : null}
+
+      {editingTaskId ? (
+        <div className="modal-overlay" onClick={handleCancelEdit} role="presentation">
+          <section className="modal-window" onClick={(event) => event.stopPropagation()}>
+            <TaskForm
+              title="Edit Task"
+              submitLabel="Update Task"
+              formData={editFormData}
+              setFormData={setEditFormData}
+              onSubmit={handleUpdate}
+              onCancel={handleCancelEdit}
+              isSubmitting={isSubmitting}
+            />
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }
