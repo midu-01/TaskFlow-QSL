@@ -71,7 +71,7 @@ class TaskApiTest extends TestCase
         ]);
     }
 
-    public function test_delete_task(): void
+    public function test_delete_task_archives_task(): void
     {
         $task = Task::factory()->create();
 
@@ -79,9 +79,10 @@ class TaskApiTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Task archived successfully.');
 
-        $this->assertDatabaseMissing('tasks', [
+        $this->assertSoftDeleted('tasks', [
             'id' => $task->id,
         ]);
     }
@@ -114,5 +115,79 @@ class TaskApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('success', false)
             ->assertJsonValidationErrors(['status']);
+    }
+
+    public function test_index_excludes_archived_tasks(): void
+    {
+        $activeTask = Task::factory()->create(['title' => 'Visible task']);
+        $archivedTask = Task::factory()->create(['title' => 'Archived task']);
+        $archivedTask->delete();
+
+        $response = $this->getJson('/api/tasks');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $activeTask->id);
+    }
+
+    public function test_archived_endpoint_returns_only_archived_tasks(): void
+    {
+        Task::factory()->create(['title' => 'Visible task']);
+        $archivedTask = Task::factory()->create(['title' => 'Archived task']);
+        $archivedTask->delete();
+
+        $response = $this->getJson('/api/tasks/archived');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $archivedTask->id)
+            ->assertJsonPath('data.0.title', 'Archived task');
+    }
+
+    public function test_restore_archived_task(): void
+    {
+        $task = Task::factory()->create([
+            'title' => 'Restorable task',
+            'status' => 'pending',
+        ]);
+        $task->delete();
+
+        $response = $this->patchJson("/api/tasks/{$task->id}/restore");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Task restored successfully.')
+            ->assertJsonPath('data.id', $task->id)
+            ->assertJsonPath('data.title', 'Restorable task');
+
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_force_delete_archived_task_permanently_removes_task(): void
+    {
+        $task = Task::factory()->create([
+            'title' => 'Task to purge',
+            'status' => 'pending',
+        ]);
+        $task->delete();
+
+        $response = $this->deleteJson("/api/tasks/{$task->id}/force");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Task permanently deleted successfully.');
+
+        $this->assertDatabaseMissing('tasks', [
+            'id' => $task->id,
+        ]);
     }
 }

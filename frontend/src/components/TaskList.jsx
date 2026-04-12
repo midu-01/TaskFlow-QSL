@@ -23,9 +23,14 @@ export default function TaskList({
   tasks,
   onEdit,
   onDelete,
+  onRestore,
+  onPermanentDelete,
   isLoading,
   emptyMessage,
   activeActionId,
+  showActions = true,
+  showRestoreAction = false,
+  deleteLabel = 'Delete',
 }) {
   if (isLoading) {
     return <div className="info-card">Loading tasks...</div>
@@ -64,30 +69,61 @@ export default function TaskList({
                   <span className="meta-chip subtle">ID #{task.id}</span>
                 </div>
 
-                <div className="row-actions">
-                  <button
-                    className="icon-action icon-edit"
-                    onClick={() => onEdit(task)}
-                    disabled={isRowBusy}
-                    aria-label="Edit task"
-                    title="Edit"
-                  >
-                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                      <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20Zm3.6-2H6v-1.6L14.5 7.9l1.6 1.6L7.6 18ZM17.7 7.9l-1.6-1.6 1-1a1.2 1.2 0 0 1 1.7 0l.9.9a1.2 1.2 0 0 1 0 1.7l-1 1Z" />
-                    </svg>
-                  </button>
-                  <button
-                    className="icon-action icon-delete"
-                    onClick={() => onDelete(task.id)}
-                    disabled={isRowBusy}
-                    aria-label="Delete task"
-                    title="Delete"
-                  >
-                    <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
-                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 12h12a2 2 0 0 0 2-2V8H4v11a2 2 0 0 0 2 2Z" />
-                    </svg>
-                  </button>
-                </div>
+                {showActions ? (
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="icon-action icon-edit"
+                      onClick={() => onEdit?.(task)}
+                      disabled={isRowBusy}
+                      aria-label="Edit task"
+                      title="Edit"
+                    >
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                        <path d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20Zm3.6-2H6v-1.6L14.5 7.9l1.6 1.6L7.6 18ZM17.7 7.9l-1.6-1.6 1-1a1.2 1.2 0 0 1 1.7 0l.9.9a1.2 1.2 0 0 1 0 1.7l-1 1Z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-action icon-delete"
+                      onClick={() => onDelete?.(task.id)}
+                      disabled={isRowBusy}
+                      aria-label={`${deleteLabel} task`}
+                      title={deleteLabel}
+                    >
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 12h12a2 2 0 0 0 2-2V8H4v11a2 2 0 0 0 2 2Z" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : showRestoreAction ? (
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="icon-action icon-restore"
+                      onClick={() => onRestore?.(task.id)}
+                      disabled={isRowBusy}
+                      aria-label="Restore task"
+                      title="Restore"
+                    >
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                        <path d="M12 5a7 7 0 1 1-6.5 9.6H8v2H2v-6h2v2.1A9 9 0 1 0 12 3c-2.2 0-4.3.8-5.9 2.2L7.5 6.6A7 7 0 0 1 12 5Z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-action icon-delete"
+                      onClick={() => onPermanentDelete?.(task.id)}
+                      disabled={isRowBusy}
+                      aria-label="Delete task permanently"
+                      title="Delete Permanently"
+                    >
+                      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 12h12a2 2 0 0 0 2-2V8H4v11a2 2 0 0 0 2 2Z" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </article>
           )

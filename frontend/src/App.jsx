@@ -4,7 +4,10 @@ import TaskList from './components/TaskList'
 import {
   createTask,
   deleteTask,
+  fetchArchivedTasks,
   fetchTasks,
+  forceDeleteTask,
+  restoreTask,
   updateTask,
 } from './api/tasks'
 
@@ -19,6 +22,36 @@ const DEFAULT_FILTERS = {
   status: '',
   search: '',
   sort: '-created_at',
+}
+
+const TREND_CHART_WIDTH = 320
+const TREND_CHART_HEIGHT = 110
+const TREND_CHART_PADDING_X = 10
+const TREND_CHART_PADDING_TOP = 10
+const TREND_CHART_PADDING_BOTTOM = 12
+const TREND_WINDOW_DAYS = 7
+
+function getLocalDateKey(dateInput) {
+  const date = new Date(dateInput)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function buildLinePath(points) {
+  if (!points.length) {
+    return ''
+  }
+
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`)
+    .join(' ')
 }
 
 function buildPayload(formData) {
@@ -54,6 +87,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeActionId, setActiveActionId] = useState(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isArchiveView, setIsArchiveView] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -122,6 +156,86 @@ function App() {
     }
   }, [allTasks, taskStats])
 
+  const deliveryTrend = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const windowDays = []
+
+    for (let index = TREND_WINDOW_DAYS - 1; index >= 0; index -= 1) {
+      const day = new Date(today)
+      day.setDate(today.getDate() - index)
+      const key = getLocalDateKey(day)
+
+      if (key) {
+        windowDays.push({
+          key,
+          label: day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        })
+      }
+    }
+
+    const dayIndexByKey = new Map(windowDays.map((day, index) => [day.key, index]))
+    const createdSeries = new Array(windowDays.length).fill(0)
+    const completedSeries = new Array(windowDays.length).fill(0)
+
+    for (const task of allTasks) {
+      const createdKey = getLocalDateKey(task.created_at)
+      const createdIndex = createdKey ? dayIndexByKey.get(createdKey) : undefined
+
+      if (createdIndex !== undefined) {
+        createdSeries[createdIndex] += 1
+      }
+
+      if (task.status === 'completed') {
+        const completedKey = getLocalDateKey(task.updated_at)
+        const completedIndex = completedKey ? dayIndexByKey.get(completedKey) : undefined
+
+        if (completedIndex !== undefined) {
+          completedSeries[completedIndex] += 1
+        }
+      }
+    }
+
+    const maxValue = Math.max(1, ...createdSeries, ...completedSeries)
+    const usableWidth = TREND_CHART_WIDTH - TREND_CHART_PADDING_X * 2
+    const usableHeight = TREND_CHART_HEIGHT - TREND_CHART_PADDING_TOP - TREND_CHART_PADDING_BOTTOM
+    const step = windowDays.length > 1 ? usableWidth / (windowDays.length - 1) : 0
+
+    const toY = (value) => TREND_CHART_PADDING_TOP + ((maxValue - value) / maxValue) * usableHeight
+    const buildPoints = (series) =>
+      series.map((value, index) => ({
+        x: TREND_CHART_PADDING_X + step * index,
+        y: toY(value),
+      }))
+
+    const createdPoints = buildPoints(createdSeries)
+    const completedPoints = buildPoints(completedSeries)
+
+    const createdThisWeek = createdSeries.reduce((sum, value) => sum + value, 0)
+    const completedThisWeek = completedSeries.reduce((sum, value) => sum + value, 0)
+    const firstHalfCompleted = completedSeries.slice(0, 3).reduce((sum, value) => sum + value, 0)
+    const lastHalfCompleted = completedSeries.slice(-3).reduce((sum, value) => sum + value, 0)
+    const paceDiff = lastHalfCompleted - firstHalfCompleted
+
+    let paceLabel = 'Completion pace steady vs early week'
+    if (paceDiff > 0) {
+      paceLabel = `Completion pace up by ${paceDiff} vs early week`
+    } else if (paceDiff < 0) {
+      paceLabel = `Completion pace down by ${Math.abs(paceDiff)} vs early week`
+    }
+
+    return {
+      createdPath: buildLinePath(createdPoints),
+      completedPath: buildLinePath(completedPoints),
+      createdThisWeek,
+      completedThisWeek,
+      startLabel: windowDays[0]?.label ?? '',
+      endLabel: windowDays[windowDays.length - 1]?.label ?? '',
+      paceLabel,
+    }
+  }, [allTasks])
+
   const loadOverviewTasks = useCallback(async () => {
     try {
       const response = await fetchTasks({ sort: '-created_at' })
@@ -148,7 +262,9 @@ function App() {
         params.search = filters.search.trim()
       }
 
-      const response = await fetchTasks(params)
+      const response = isArchiveView
+        ? await fetchArchivedTasks(params)
+        : await fetchTasks(params)
       setTableTasks(response.data)
       setErrorMessage('')
     } catch (error) {
@@ -156,7 +272,7 @@ function App() {
     } finally {
       setIsLoading(false)
     }
-  }, [filters.search, filters.sort, filters.status])
+  }, [filters.search, filters.sort, filters.status, isArchiveView])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -169,6 +285,13 @@ function App() {
   useEffect(() => {
     loadOverviewTasks()
   }, [loadOverviewTasks])
+
+  useEffect(() => {
+    if (isArchiveView && editingTaskId) {
+      setEditingTaskId(null)
+      setEditFormData(EMPTY_FORM)
+    }
+  }, [isArchiveView, editingTaskId])
 
   useEffect(() => {
     if (!successMessage) {
@@ -235,7 +358,7 @@ function App() {
   }
 
   const handleDelete = async (taskId) => {
-    const isConfirmed = window.confirm('Are you sure you want to delete this task?')
+    const isConfirmed = window.confirm('Are you sure you want to archive this task?')
 
     if (!isConfirmed) {
       return
@@ -245,13 +368,57 @@ function App() {
 
     try {
       await deleteTask(taskId)
-      setSuccessMessage('Task deleted successfully.')
+      setSuccessMessage('Task archived successfully.')
       setErrorMessage('')
 
       if (editingTaskId === taskId) {
         handleCancelEdit()
       }
 
+      await Promise.all([loadOverviewTasks(), loadTableTasks()])
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setActiveActionId(null)
+    }
+  }
+
+  const handleRestore = async (taskId) => {
+    const isConfirmed = window.confirm('Are you sure you want to restore this task?')
+
+    if (!isConfirmed) {
+      return
+    }
+
+    setActiveActionId(taskId)
+
+    try {
+      await restoreTask(taskId)
+      setSuccessMessage('Task restored successfully.')
+      setErrorMessage('')
+      await Promise.all([loadOverviewTasks(), loadTableTasks()])
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setActiveActionId(null)
+    }
+  }
+
+  const handlePermanentDelete = async (taskId) => {
+    const isConfirmed = window.confirm(
+      'Permanently delete this task? This action cannot be undone.',
+    )
+
+    if (!isConfirmed) {
+      return
+    }
+
+    setActiveActionId(taskId)
+
+    try {
+      await forceDeleteTask(taskId)
+      setSuccessMessage('Task permanently deleted.')
+      setErrorMessage('')
       await Promise.all([loadOverviewTasks(), loadTableTasks()])
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
@@ -282,13 +449,28 @@ function App() {
     setCreateFormData(EMPTY_FORM)
   }
 
+  const handleToggleArchiveView = () => {
+    setIsArchiveView((previous) => !previous)
+    setErrorMessage('')
+    setSuccessMessage('')
+  }
+
   return (
     <main className="dashboard">
       <header className="top-bar">
         <h1>TaskFlow</h1>
-        <button type="button" className="new-task-btn" onClick={handleOpenCreateModal}>
-          + New task
-        </button>
+        <div className="top-bar-actions">
+          <button
+            type="button"
+            className={`archive-toggle-btn ${isArchiveView ? 'active' : ''}`}
+            onClick={handleToggleArchiveView}
+          >
+            {isArchiveView ? 'Back to Tasks' : 'Archive'}
+          </button>
+          <button type="button" className="new-task-btn" onClick={handleOpenCreateModal}>
+            + New task
+          </button>
+        </div>
       </header>
 
       {errorMessage ? <div className="alert alert-error">{errorMessage}</div> : null}
@@ -391,29 +573,48 @@ function App() {
         <article className="insight-card">
           <div className="insight-header">
             <h3>Delivery Trend</h3>
-            <span className="pill">Weekly</span>
+            <span className="pill">Last 7 Days</span>
           </div>
-          <svg className="trend-chart" viewBox="0 0 320 110" role="img" aria-label="Task delivery trend">
-            <path d="M0 65 C20 50, 42 76, 62 60 C82 42, 104 75, 124 58 C145 42, 166 67, 186 52 C206 38, 228 64, 248 45 C268 30, 292 62, 320 49" />
-            <path d="M0 86 C22 72, 44 92, 66 81 C87 71, 108 96, 130 84 C151 72, 173 94, 195 82 C216 71, 238 89, 260 77 C282 66, 301 84, 320 73" />
+          <svg
+            className="trend-chart"
+            viewBox={`0 0 ${TREND_CHART_WIDTH} ${TREND_CHART_HEIGHT}`}
+            role="img"
+            aria-label="Task delivery trend for created and completed tasks over the last seven days"
+          >
+            <path d={deliveryTrend.createdPath} />
+            <path d={deliveryTrend.completedPath} />
           </svg>
+          <div className="trend-legend">
+            <span className="legend-item">
+              <i className="legend-dot created" />
+              Created
+            </span>
+            <span className="legend-item">
+              <i className="legend-dot completed" />
+              Completed
+            </span>
+            <span className="trend-window">
+              {deliveryTrend.startLabel} to {deliveryTrend.endLabel}
+            </span>
+          </div>
           <div className="trend-meta">
             <div>
-              <span>Due Soon</span>
-              <strong>{insights.dueSoon}</strong>
+              <span>Created</span>
+              <strong>{deliveryTrend.createdThisWeek}</strong>
             </div>
             <div>
-              <span>Overdue</span>
-              <strong>{insights.overdue}</strong>
+              <span>Completed</span>
+              <strong>{deliveryTrend.completedThisWeek}</strong>
             </div>
           </div>
+          <p className="trend-footnote">{deliveryTrend.paceLabel}</p>
         </article>
       </section>
 
       <section className="workspace-grid">
         <section className="workspace-panel list-panel">
           <div className="section-head">
-            <h2>Task Table</h2>
+            <h2>{isArchiveView ? 'Archived Tasks' : 'Task Table'}</h2>
           </div>
 
           <div className="table-filters">
@@ -459,11 +660,22 @@ function App() {
 
           <TaskList
             tasks={tableTasks}
-            onEdit={handleEditClick}
-            onDelete={handleDelete}
+            onEdit={isArchiveView ? undefined : handleEditClick}
+            onDelete={isArchiveView ? undefined : handleDelete}
+            onRestore={isArchiveView ? handleRestore : undefined}
+            onPermanentDelete={isArchiveView ? handlePermanentDelete : undefined}
             isLoading={isLoading}
-            emptyMessage={hasFilter ? 'No tasks found for the selected filters.' : 'No tasks available. Create one to get started.'}
+            emptyMessage={
+              hasFilter
+                ? 'No tasks found for the selected filters.'
+                : isArchiveView
+                  ? 'No archived tasks yet.'
+                  : 'No tasks available. Create one to get started.'
+            }
             activeActionId={activeActionId}
+            showActions={!isArchiveView}
+            showRestoreAction={isArchiveView}
+            deleteLabel="Archive"
           />
         </section>
       </section>

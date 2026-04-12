@@ -5,6 +5,11 @@ export async function fetchTasks(params) {
   return response.data
 }
 
+export async function fetchArchivedTasks(params) {
+  const response = await api.get('/tasks/archived', { params })
+  return response.data
+}
+
 export async function createTask(payload) {
   const response = await api.post('/tasks', payload)
   return response.data
@@ -22,5 +27,15 @@ export async function updateTaskStatus(taskId, status) {
 
 export async function deleteTask(taskId) {
   const response = await api.delete(`/tasks/${taskId}`)
+  return response.data
+}
+
+export async function restoreTask(taskId) {
+  const response = await api.patch(`/tasks/${taskId}/restore`)
+  return response.data
+}
+
+export async function forceDeleteTask(taskId) {
+  const response = await api.delete(`/tasks/${taskId}/force`)
   return response.data
 }

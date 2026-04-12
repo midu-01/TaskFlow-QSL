@@ -17,17 +17,21 @@ class TaskController extends Controller
 
     public function index(IndexTaskRequest $request)
     {
-        $validated = $request->validated();
-
-        $tasks = Task::query()
-            ->filterStatus($validated['status'] ?? null)
-            ->searchByTitle($validated['search'] ?? null)
-            ->sortByParam($validated['sort'] ?? '-created_at')
-            ->get();
+        $tasks = $this->resolveTaskCollection($request->validated());
 
         return $this->successResponse(
             TaskResource::collection($tasks)->resolve(),
             'Tasks retrieved successfully.'
+        );
+    }
+
+    public function archived(IndexTaskRequest $request)
+    {
+        $tasks = $this->resolveTaskCollection($request->validated(), true);
+
+        return $this->successResponse(
+            TaskResource::collection($tasks)->resolve(),
+            'Archived tasks retrieved successfully.'
         );
     }
 
@@ -76,6 +80,40 @@ class TaskController extends Controller
     {
         $task->delete();
 
-        return $this->successResponse(null, 'Task deleted successfully.');
+        return $this->successResponse(null, 'Task archived successfully.');
+    }
+
+    public function restore(int $task)
+    {
+        $archivedTask = Task::onlyTrashed()->findOrFail($task);
+        $archivedTask->restore();
+
+        return $this->successResponse(
+            TaskResource::make($archivedTask->fresh())->resolve(),
+            'Task restored successfully.'
+        );
+    }
+
+    public function forceDelete(int $task)
+    {
+        $archivedTask = Task::onlyTrashed()->findOrFail($task);
+        $archivedTask->forceDelete();
+
+        return $this->successResponse(null, 'Task permanently deleted successfully.');
+    }
+
+    private function resolveTaskCollection(array $validated, bool $archivedOnly = false)
+    {
+        $query = Task::query();
+
+        if ($archivedOnly) {
+            $query->onlyTrashed();
+        }
+
+        return $query
+            ->filterStatus($validated['status'] ?? null)
+            ->searchByTitle($validated['search'] ?? null)
+            ->sortByParam($validated['sort'] ?? '-created_at')
+            ->get();
     }
 }
