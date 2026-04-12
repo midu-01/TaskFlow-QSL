@@ -1,5 +1,3 @@
-import StatusBadge from './StatusBadge'
-
 function formatDate(date) {
   if (!date) {
     return 'No due date'
@@ -13,6 +11,12 @@ function formatDate(date) {
 
   const [year, month, day] = parts
   return `${month}/${day}/${year}`
+}
+
+const STATUS_LABELS = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
 }
 
 export default function TaskList({
@@ -42,10 +46,17 @@ export default function TaskList({
               <div className="task-mini-head">
                 <div className="task-mini-main">
                   <h3 className="task-mini-title">{task.title}</h3>
-                  <p className="task-mini-desc">{task.description || 'No description provided.'}</p>
                 </div>
-                <StatusBadge status={task.status} />
+                <div className="status-actions">
+                  <span
+                    className={`status-toggle active ${task.status === 'in_progress' ? 'in-progress' : task.status}`}
+                  >
+                    {STATUS_LABELS[task.status] || task.status}
+                  </span>
+                </div>
               </div>
+
+              <p className="task-mini-desc">{task.description || 'No description provided.'}</p>
 
               <div className="task-mini-footer">
                 <div className="task-mini-meta">

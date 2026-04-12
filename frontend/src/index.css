@@ -186,6 +186,35 @@ textarea {
   gap: 10px;
 }
 
+.centered-card > :not(.insight-header) {
+  justify-self: center;
+}
+
+.centered-card .progress-main,
+.centered-card .muted {
+  text-align: center;
+}
+
+.centered-card .stacked-bars {
+  width: min(100%, 320px);
+}
+
+.centered-card .status-row {
+  width: min(100%, 320px);
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.centered-card .status-item {
+  flex: 1;
+  justify-content: center;
+}
+
+.centered-card .status-lines {
+  justify-items: center;
+  text-align: center;
+}
+
 .insight-header {
   display: flex;
   align-items: center;
@@ -249,6 +278,59 @@ textarea {
   gap: 4px;
   font-size: 12px;
   color: #4d5460;
+}
+
+.status-row {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.status-item .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.status-item.pending {
+  background: #ffe8f3;
+  color: #b82a73;
+}
+
+.status-item.pending .dot {
+  background: #ec4899;
+}
+
+.status-item.in-progress {
+  background: #e8f1ff;
+  color: #165dcc;
+}
+
+.status-item.in-progress .dot {
+  background: #3b82f6;
+}
+
+.status-item.completed {
+  background: #e8f8ec;
+  color: #13813b;
+}
+
+.status-item.completed .dot {
+  background: #16a34a;
 }
 
 .status-ring {
@@ -324,6 +406,11 @@ textarea {
 .trend-meta div {
   display: grid;
   gap: 3px;
+}
+
+.trend-meta div:last-child {
+  justify-items: end;
+  text-align: right;
 }
 
 .trend-meta span {
@@ -544,8 +631,8 @@ textarea {
 
 .task-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .task-mini-card {
@@ -553,9 +640,11 @@ textarea {
   border: 1px solid #d8dce5;
   border-radius: 14px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
-  padding: 12px;
+  padding: 16px;
   display: grid;
-  gap: 10px;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  min-height: 232px;
   transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -589,46 +678,91 @@ textarea {
 }
 
 .task-mini-head {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .task-mini-main {
   display: grid;
-  gap: 6px;
+  min-width: 0;
 }
 
 .task-mini-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.2;
-  padding-left: 8px;
 }
 
 .task-mini-desc {
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: #626a77;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  padding-left: 8px;
+  align-self: start;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.status-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 148px;
+}
+
+.status-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8dce5;
+  border-radius: 999px;
+  background: #f5f7fa;
+  color: #6b7380;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.status-toggle.pending.active {
+  background: var(--pending-bg);
+  border-color: #f6c6dc;
+  color: var(--pending-text);
+}
+
+.status-toggle.in-progress.active {
+  background: var(--progress-bg);
+  border-color: #bfd5ff;
+  color: var(--progress-text);
+}
+
+.status-toggle.completed.active {
+  background: var(--completed-bg);
+  border-color: #bceacc;
+  color: var(--completed-text);
 }
 
 .task-mini-footer {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  margin-top: auto;
 }
 
 .task-mini-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-left: 8px;
 }
 
 .meta-chip {
@@ -644,32 +778,6 @@ textarea {
 .meta-chip.subtle {
   background: #f2f4f7;
   color: #677180;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.status-badge.pending {
-  background: var(--pending-bg);
-  color: var(--pending-text);
-}
-
-.status-badge.in_progress {
-  background: var(--progress-bg);
-  color: var(--progress-text);
-}
-
-.status-badge.completed {
-  background: var(--completed-bg);
-  color: var(--completed-text);
 }
 
 .row-actions {
@@ -753,6 +861,10 @@ textarea {
   .workspace-grid {
     grid-template-columns: 1fr;
   }
+
+  .task-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 960px) {
@@ -772,6 +884,14 @@ textarea {
 
   .new-task-btn {
     align-self: flex-start;
+  }
+
+  .task-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-row {
+    flex-wrap: wrap;
   }
 
   .task-mini-footer {

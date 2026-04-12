@@ -324,7 +324,7 @@ function App() {
       </section>
 
       <section className="insight-grid">
-        <article className="insight-card">
+        <article className="insight-card centered-card">
           <div className="insight-header">
             <h3>Task Progress</h3>
             <span className="pill">Live</span>
@@ -336,14 +336,23 @@ function App() {
             <div className="bar progress" style={{ width: `${insights.inProgressRate}%` }} />
             <div className="bar complete" style={{ width: `${insights.completedRate}%` }} />
           </div>
-          <div className="legend">
-            <span>Pending {taskStats.pending}</span>
-            <span>In Progress {taskStats.inProgress}</span>
-            <span>Completed {taskStats.completed}</span>
+          <div className="status-row">
+            <span className="status-item pending">
+              <i className="dot" />
+              Pending {taskStats.pending}
+            </span>
+            <span className="status-item in-progress">
+              <i className="dot" />
+              In Progress {taskStats.inProgress}
+            </span>
+            <span className="status-item completed">
+              <i className="dot" />
+              Completed {taskStats.completed}
+            </span>
           </div>
         </article>
 
-        <article className="insight-card">
+        <article className="insight-card centered-card">
           <div className="insight-header">
             <h3>Task Status</h3>
             <span className="pill">Summary</span>
@@ -363,10 +372,19 @@ function App() {
               <span>tasks</span>
             </div>
           </div>
-          <div className="status-lines">
-            <p>Completed: {taskStats.completed}</p>
-            <p>In Progress: {taskStats.inProgress}</p>
-            <p>Pending: {taskStats.pending}</p>
+          <div className="status-row">
+            <span className="status-item pending">
+              <i className="dot" />
+              Pending {taskStats.pending}
+            </span>
+            <span className="status-item in-progress">
+              <i className="dot" />
+              In Progress {taskStats.inProgress}
+            </span>
+            <span className="status-item completed">
+              <i className="dot" />
+              Completed {taskStats.completed}
+            </span>
           </div>
         </article>
 
