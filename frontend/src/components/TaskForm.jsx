@@ -1,8 +1,26 @@
-const EMPTY_FORM = {
-  title: '',
-  description: '',
-  status: 'pending',
-  due_date: '',
+import Calendar from 'react-calendar'
+import 'react-calendar/dist/Calendar.css'
+
+function formatDateToYmd(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function parseYmd(value) {
+  if (!value) {
+    return null
+  }
+
+  const [year, month, day] = value.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  return new Date(year, month - 1, day)
 }
 
 export default function TaskForm({
@@ -11,7 +29,6 @@ export default function TaskForm({
   formData,
   setFormData,
   onSubmit,
-  onCancel,
   isSubmitting,
 }) {
   const handleChange = (event) => {
@@ -22,12 +39,25 @@ export default function TaskForm({
     }))
   }
 
-  const handleReset = () => {
-    setFormData(EMPTY_FORM)
-    if (onCancel) {
-      onCancel()
+  const handleDateChange = (value) => {
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+      return
     }
+
+    setFormData((previous) => ({
+      ...previous,
+      due_date: formatDateToYmd(value),
+    }))
   }
+
+  const clearDueDate = () => {
+    setFormData((previous) => ({
+      ...previous,
+      due_date: '',
+    }))
+  }
+
+  const selectedDate = parseYmd(formData.due_date)
 
   return (
     <form className="task-form" onSubmit={onSubmit}>
@@ -69,18 +99,35 @@ export default function TaskForm({
           />
         </label>
 
-        <label className="field">
+        <label className="field field-full">
           <span>Due Date</span>
-          <input name="due_date" type="date" value={formData.due_date || ''} onChange={handleChange} />
+          <div className="due-date-panel">
+            <div className="due-date-meta">
+              <input
+                type="text"
+                className="due-date-display"
+                value={formData.due_date || 'No due date selected'}
+                readOnly
+              />
+              {formData.due_date ? (
+                <button type="button" className="clear-date-btn" onClick={clearDueDate}>
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            <Calendar
+              className="task-calendar"
+              value={selectedDate || new Date()}
+              onChange={handleDateChange}
+              calendarType="gregory"
+            />
+          </div>
         </label>
       </div>
 
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : submitLabel}
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={handleReset} disabled={isSubmitting}>
-          {onCancel ? 'Cancel' : 'Reset'}
         </button>
       </div>
     </form>

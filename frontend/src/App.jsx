@@ -471,13 +471,20 @@ function App() {
       {isCreateModalOpen ? (
         <div className="modal-overlay" onClick={handleCloseCreateModal} role="presentation">
           <section className="modal-window" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={handleCloseCreateModal}
+              aria-label="Close create task window"
+            >
+              ×
+            </button>
             <TaskForm
               title="Create Task"
               submitLabel="Create Task"
               formData={createFormData}
               setFormData={setCreateFormData}
               onSubmit={handleCreate}
-              onCancel={handleCloseCreateModal}
               isSubmitting={isSubmitting}
             />
           </section>
@@ -487,13 +494,20 @@ function App() {
       {editingTaskId ? (
         <div className="modal-overlay" onClick={handleCancelEdit} role="presentation">
           <section className="modal-window" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={handleCancelEdit}
+              aria-label="Close edit task window"
+            >
+              ×
+            </button>
             <TaskForm
               title="Edit Task"
               submitLabel="Update Task"
               formData={editFormData}
               setFormData={setEditFormData}
               onSubmit={handleUpdate}
-              onCancel={handleCancelEdit}
               isSubmitting={isSubmitting}
             />
           </section>
