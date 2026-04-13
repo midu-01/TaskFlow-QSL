@@ -1,0 +1,285 @@
+.filters,
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.task-form .field-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field span {
+  color: #565d68;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea,
+.status-cell select {
+  border: 1px solid #d6d8dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e232e;
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.status-cell select:focus {
+  outline: none;
+  border-color: #2d7df6;
+  box-shadow: 0 0 0 3px rgba(45, 125, 246, 0.16);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.table-filters {
+  display: grid;
+  grid-template-columns: 180px minmax(260px, 1fr) 220px auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.filter-inline {
+  min-width: 0;
+}
+
+.table-filters .filter-reset {
+  align-self: end;
+}
+
+.filter-reset {
+  justify-self: start;
+}
+
+.task-form {
+  display: grid;
+  gap: 10px;
+}
+
+.form-header h2 {
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  padding-right: 36px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.form-actions .btn-primary {
+  min-width: 220px;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: #111317;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #000;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #3d444f;
+  border-color: #d4d7de;
+}
+
+.btn-secondary:hover {
+  background: #f5f6f8;
+}
+
+.btn-danger {
+  background: #eb3e3e;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #d83030;
+}
+
+.edit-placeholder {
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.edit-placeholder h2 {
+  font-size: 26px;
+  letter-spacing: -0.03em;
+}
+
+.edit-placeholder p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(17, 18, 21, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.modal-window {
+  position: relative;
+  width: min(980px, 98vw);
+  max-height: calc(100vh - 36px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  padding: 18px 16px 16px;
+  box-shadow: 0 22px 48px rgba(17, 18, 21, 0.2);
+  overflow-y: auto;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d5d9e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #4e5661;
+  font-size: 22px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: #f3f5f8;
+}
+
+.due-date-panel {
+  border: 1px solid #d6d8dd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.due-date-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.due-date-display {
+  flex: 1;
+  min-height: 40px;
+  background: #f8fafc;
+  border: 1px solid #e3e8f0;
+}
+
+.clear-date-btn {
+  border: 1px solid #d4dbe6;
+  border-radius: 10px;
+  background: #fff;
+  color: #4c5563;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clear-date-btn:hover {
+  background: #f4f7fb;
+}
+
+.task-calendar {
+  width: 100%;
+  border: 1px solid #dde2ea !important;
+  border-radius: 12px !important;
+  padding: 10px;
+  background: #fff;
+}
+
+.task-calendar .react-calendar__navigation {
+  margin-bottom: 8px;
+}
+
+.task-calendar .react-calendar__navigation button {
+  min-width: 40px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.task-calendar .react-calendar__month-view__weekdays {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #667085;
+}
+
+.task-calendar .react-calendar__tile {
+  border-radius: 8px;
+  height: 42px;
+  font-weight: 700;
+}
+
+.task-calendar .react-calendar__tile--now {
+  background: #e8f1ff;
+  color: #165dcc;
+}
+
+.task-calendar .react-calendar__tile--active {
+  background: #111317 !important;
+  color: #fff !important;
+}
+
+.task-calendar .react-calendar__tile:enabled:hover {
+  background: #eff3f8;
+}

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createTask, deleteTask, fetchTasks, updateTask } from '../api/tasks'
+import {
+  createTask,
+  deleteTask,
+  fetchArchivedTasks,
+  fetchTasks,
+  forceDeleteTask,
+  restoreTask,
+  updateTask,
+} from '../api/tasks'
 import { DEFAULT_TASK_FILTERS, EMPTY_TASK_FORM } from '../constants/taskConstants'
 import {
+  buildDeliveryTrend,
   buildTaskPayload,
   buildTaskQueryParams,
   computeTaskInsights,
@@ -16,10 +25,11 @@ export function useTaskDashboard() {
   const [createFormData, setCreateFormData] = useState(EMPTY_TASK_FORM)
   const [editFormData, setEditFormData] = useState(EMPTY_TASK_FORM)
   const [editingTaskId, setEditingTaskId] = useState(null)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeActionId, setActiveActionId] = useState(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isArchiveView, setIsArchiveView] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -30,6 +40,7 @@ export function useTaskDashboard() {
 
   const taskStats = useMemo(() => summarizeTasks(allTasks), [allTasks])
   const insights = useMemo(() => computeTaskInsights(allTasks, taskStats), [allTasks, taskStats])
+  const deliveryTrend = useMemo(() => buildDeliveryTrend(allTasks), [allTasks])
 
   const loadOverviewTasks = useCallback(async () => {
     try {
@@ -45,7 +56,8 @@ export function useTaskDashboard() {
     setIsLoading(true)
 
     try {
-      const response = await fetchTasks(buildTaskQueryParams(filters))
+      const params = buildTaskQueryParams(filters)
+      const response = isArchiveView ? await fetchArchivedTasks(params) : await fetchTasks(params)
       setTableTasks(response.data)
       setErrorMessage('')
     } catch (error) {
@@ -53,7 +65,11 @@ export function useTaskDashboard() {
     } finally {
       setIsLoading(false)
     }
-  }, [filters])
+  }, [filters, isArchiveView])
+
+  const refreshAllData = useCallback(async () => {
+    await Promise.all([loadOverviewTasks(), loadTableTasks()])
+  }, [loadOverviewTasks, loadTableTasks])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -68,6 +84,13 @@ export function useTaskDashboard() {
   }, [loadOverviewTasks])
 
   useEffect(() => {
+    if (isArchiveView && editingTaskId) {
+      setEditingTaskId(null)
+      setEditFormData(EMPTY_TASK_FORM)
+    }
+  }, [isArchiveView, editingTaskId])
+
+  useEffect(() => {
     if (!successMessage) {
       return undefined
     }
@@ -76,11 +99,7 @@ export function useTaskDashboard() {
     return () => clearTimeout(timer)
   }, [successMessage])
 
-  const refreshAllData = useCallback(async () => {
-    await Promise.all([loadOverviewTasks(), loadTableTasks()])
-  }, [loadOverviewTasks, loadTableTasks])
-
-  const submitCreateTask = async (event) => {
+  const handleCreate = async (event) => {
     event.preventDefault()
     setIsSubmitting(true)
 
@@ -98,7 +117,7 @@ export function useTaskDashboard() {
     }
   }
 
-  const openEditModal = (task) => {
+  const handleEditClick = (task) => {
     setEditingTaskId(task.id)
     setEditFormData({
       title: task.title,
@@ -108,12 +127,12 @@ export function useTaskDashboard() {
     })
   }
 
-  const closeEditModal = () => {
+  const handleCancelEdit = () => {
     setEditingTaskId(null)
     setEditFormData(EMPTY_TASK_FORM)
   }
 
-  const submitEditTask = async (event) => {
+  const handleUpdate = async (event) => {
     event.preventDefault()
 
     if (!editingTaskId) {
@@ -126,7 +145,7 @@ export function useTaskDashboard() {
       await updateTask(editingTaskId, buildTaskPayload(editFormData))
       setSuccessMessage('Task updated successfully.')
       setErrorMessage('')
-      closeEditModal()
+      handleCancelEdit()
       await refreshAllData()
     } catch (error) {
       setErrorMessage(extractApiErrorMessage(error))
@@ -135,8 +154,8 @@ export function useTaskDashboard() {
     }
   }
 
-  const removeTask = async (taskId) => {
-    const isConfirmed = window.confirm('Are you sure you want to delete this task?')
+  const handleDelete = async (taskId) => {
+    const isConfirmed = window.confirm('Are you sure you want to archive this task?')
 
     if (!isConfirmed) {
       return
@@ -146,11 +165,11 @@ export function useTaskDashboard() {
 
     try {
       await deleteTask(taskId)
-      setSuccessMessage('Task deleted successfully.')
+      setSuccessMessage('Task archived successfully.')
       setErrorMessage('')
 
       if (editingTaskId === taskId) {
-        closeEditModal()
+        handleCancelEdit()
       }
 
       await refreshAllData()
@@ -161,7 +180,49 @@ export function useTaskDashboard() {
     }
   }
 
-  const updateFilters = (event) => {
+  const handleRestore = async (taskId) => {
+    const isConfirmed = window.confirm('Are you sure you want to restore this task?')
+
+    if (!isConfirmed) {
+      return
+    }
+
+    setActiveActionId(taskId)
+
+    try {
+      await restoreTask(taskId)
+      setSuccessMessage('Task restored successfully.')
+      setErrorMessage('')
+      await refreshAllData()
+    } catch (error) {
+      setErrorMessage(extractApiErrorMessage(error))
+    } finally {
+      setActiveActionId(null)
+    }
+  }
+
+  const handlePermanentDelete = async (taskId) => {
+    const isConfirmed = window.confirm('Permanently delete this task? This action cannot be undone.')
+
+    if (!isConfirmed) {
+      return
+    }
+
+    setActiveActionId(taskId)
+
+    try {
+      await forceDeleteTask(taskId)
+      setSuccessMessage('Task permanently deleted.')
+      setErrorMessage('')
+      await refreshAllData()
+    } catch (error) {
+      setErrorMessage(extractApiErrorMessage(error))
+    } finally {
+      setActiveActionId(null)
+    }
+  }
+
+  const handleFilterChange = (event) => {
     const { name, value } = event.target
 
     setFilters((previous) => ({
@@ -170,45 +231,55 @@ export function useTaskDashboard() {
     }))
   }
 
-  const resetFilters = () => {
+  const clearFilters = () => {
     setFilters(DEFAULT_TASK_FILTERS)
   }
 
-  const openCreateModal = () => {
+  const handleOpenCreateModal = () => {
     setIsCreateModalOpen(true)
   }
 
-  const closeCreateModal = () => {
+  const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false)
     setCreateFormData(EMPTY_TASK_FORM)
   }
 
+  const handleToggleArchiveView = () => {
+    setIsArchiveView((previous) => !previous)
+    setErrorMessage('')
+    setSuccessMessage('')
+  }
+
   return {
-    allTasks,
     tableTasks,
     filters,
     createFormData,
     editFormData,
     editingTaskId,
-    isCreateModalOpen,
     isLoading,
     isSubmitting,
     activeActionId,
+    isCreateModalOpen,
+    isArchiveView,
     errorMessage,
     successMessage,
     hasFilter,
     taskStats,
     insights,
+    deliveryTrend,
     setCreateFormData,
     setEditFormData,
-    submitCreateTask,
-    openEditModal,
-    closeEditModal,
-    submitEditTask,
-    removeTask,
-    updateFilters,
-    resetFilters,
-    openCreateModal,
-    closeCreateModal,
+    handleCreate,
+    handleEditClick,
+    handleCancelEdit,
+    handleUpdate,
+    handleDelete,
+    handleRestore,
+    handlePermanentDelete,
+    handleFilterChange,
+    clearFilters,
+    handleOpenCreateModal,
+    handleCloseCreateModal,
+    handleToggleArchiveView,
   }
 }
